@@ -139,3 +139,7 @@ This chatbot is designed to help you quickly understand IIRIS services, identify
 20. What services does IIRIS offer in the UAE and Gulf region?
 
 IIRIS provides its full suite of services in the UAE and Gulf region, operating primarily through its Dubai office. These services include Risk Advisory, Security Design, Forensics, Business Continuity Management, and specialized Training. The UAE team ensures localized delivery of global risk management standards for clients across the Middle East.
+
+21. What is the full form of IIRIS ? 
+
+IIRIS stands for Indus IntelliRisk & IntelliSense Services. It is a leading global risk management and consulting firm specializing in risk advisory, security design, forensics, business continuity, and training.

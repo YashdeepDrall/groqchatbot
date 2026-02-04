@@ -37,13 +37,24 @@ print("✅ Models and vector store loaded.")
 # --- Prompt Templates ---
 condense_question_prompt = ChatPromptTemplate.from_template(
     """
-    Given the following conversation and a follow-up question, rephrase the follow-up question to be a standalone question.
-    
+    Rephrase the follow-up question to be a standalone question, using the chat history for context.
+
+    **RULE:** If the follow-up is an affirmation like "yes" or "sure", and the last message was a question, rephrase the affirmation into a question that seeks the information offered. DO NOT output the original affirmation.
+
+    ---
+    **EXAMPLE**
+    Chat History:
+    Consultant: Would you like to know more about the services IIRIS offers?
+    User: yes
+    Follow Up Input: yes
+    Standalone Question: What services does IIRIS offer?
+    ---
+    **TASK**
     Chat History:
     {history}
-    
+
     Follow Up Input: {question}
-    
+
     Standalone Question:
     """
 )
@@ -118,6 +129,12 @@ def is_signoff(question: str) -> bool:
     if cleaned_input in signoff_words or any(cleaned_input.startswith(s + " ") for s in signoff_words):
         return True
     return bool(difflib.get_close_matches(cleaned_input, signoff_words, n=1, cutoff=0.8))
+
+def is_affirmation(question: str) -> bool:
+    """Checks if the input is a simple affirmation like 'yes' or 'sure'."""
+    affirmation_words = ["yes", "yep", "yeah", "sure", "ok", "okay", "go ahead", "please do"]
+    cleaned_input = question.lower().strip("!.,? '\"")
+    return cleaned_input in affirmation_words
 
 def correct_typos(question: str) -> str:
     """Corrects typos in the user's question by matching against a list of known domain terms."""
@@ -219,7 +236,39 @@ async def ask_endpoint(request: QueryRequest):
                 "question": corrected_question
             })
             update_usage(condensed_response)
-            search_query = condensed_response.content
+            search_query = condensed_response.content.strip()
+
+            # --- ROBUSTNESS FALLBACK for Affirmations ---
+            # If the model fails to rephrase a simple "yes", we intervene.
+            # This checks if the original question was an affirmation AND the rephrased query is still the same (or very short), indicating failure.
+            if is_affirmation(corrected_question) and (search_query.lower() == corrected_question.lower() or len(search_query.split()) <= 2):
+                print("⚠️ Condensation failed on affirmation. Applying robust fallback.")
+                last_bot_message = ""
+                # Find the last message from the assistant to provide context for the fallback.
+                for msg in reversed(request.history):
+                    if msg.get("role") != "user":
+                        last_bot_message = msg.get("content")
+                        break
+                
+                if last_bot_message:
+                    # Create a highly specific prompt to fix the failed condensation.
+                    fallback_prompt = ChatPromptTemplate.from_template(
+                        """A user replied with an affirmation like "yes" to your last question.
+                        Your last question was: "{last_question}"
+                        
+                        What is the implied standalone question the user is asking now?
+                        Example: If your last question was "Would you like to know about services?", the implied question is "What services does IIRIS offer?".
+                        
+                        Implied standalone question:"""
+                    )
+                    fallback_chain = fallback_prompt | request_model
+                    fallback_response = await fallback_chain.ainvoke({"last_question": last_bot_message})
+                    update_usage(fallback_response)
+                    
+                    new_search_query = fallback_response.content.strip()
+                    if new_search_query: # Ensure the fallback didn't return an empty string.
+                        search_query = new_search_query
+                        print(f"✅ Fallback generated new search query: '{search_query}'")
 
         # Use asynchronous search for better performance
         docs = await db.asimilarity_search(search_query, k=request.k)
@@ -228,7 +277,7 @@ async def ask_endpoint(request: QueryRequest):
         # Always try to answer from context first using the detailed prompt.
         response_obj = await (context_prompt | request_model).ainvoke({
             "context": context, 
-            "question": corrected_question, 
+            "question": search_query, # Use the rephrased question for answering
             "history": history_text
         })
         update_usage(response_obj)
@@ -260,9 +309,9 @@ async def ask_endpoint(request: QueryRequest):
                 flags.append("irrelevant_question")
 
         if "irrelevant_question" not in flags and "greeting" not in flags and "signoff" not in flags:
-            flags.extend(analyze_response(request.question, response))
-            flags = list(set(flags))
-            if flags:
+            # If any flags were raised during the process (e.g., "unable_to_answer"), append the support contact.
+            # The redundant call to analyze_response is removed as it was causing incorrect flagging.
+            if list(set(flags)):
                 response += "\n\nFor further assistance, please contact support at: contactus@iirisconsulting.com"
         
         chat_id = store_chat(request.question, response, context, flags=flags, token_usage=total_usage)
