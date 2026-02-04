@@ -5,6 +5,7 @@ from pymongo import MongoClient
 from bson import ObjectId
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
+from dotenv import load_dotenv
 
 # --- Pydantic Models ---
 
@@ -33,9 +34,12 @@ class ChatRecord(BaseModel):
 
 # --- MongoDB Functions ---
 
+load_dotenv()
+
 def get_mongo_collection():
     """Establishes connection to MongoDB and returns the chat_history collection."""
-    mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+    # Removed angle brackets <> from the password
+    mongo_uri = os.getenv("MONGO_URI", "mongodb+srv://yashdeepdrall_db_user:fetO6Qa28abMif1I@cluster0.zr6fjh1.mongodb.net/?appName=Cluster0")
     client = MongoClient(mongo_uri)
     db = client["cybersecurity_bot"]
     return db["chat_history"]

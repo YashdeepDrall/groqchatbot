@@ -37,19 +37,28 @@ print("✅ Models and vector store loaded.")
 # --- Prompt Templates ---
 condense_question_prompt = ChatPromptTemplate.from_template(
     """
-    Rephrase the follow-up question to be a standalone question, using the chat history for context.
+    You are an expert at understanding user intent in a conversation.
+    Your task is to rewrite the user's follow-up input into a clear, standalone question that can be used to search a knowledge base.
 
-    **RULE:** If the follow-up is an affirmation like "yes" or "sure", and the last message was a question, rephrase the affirmation into a question that seeks the information offered. DO NOT output the original affirmation.
-
-    ---
-    **EXAMPLE**
+    **CRITICAL RULE FOR AFFIRMATIONS:**
+    If the user says "yes", "sure", "okay", or similar, look at the Consultant's last message.
+    The Consultant likely offered information (e.g., "Would you like to know about X?").
+    You MUST rewrite "yes" into "Tell me about X." or "What is X?".
+    
+    **Examples:**
+    
     Chat History:
-    Consultant: Would you like to know more about the services IIRIS offers?
+    Consultant: IIRIS is a global firm. Would you like to know about our services?
     User: yes
-    Follow Up Input: yes
     Standalone Question: What services does IIRIS offer?
-    ---
-    **TASK**
+
+    Chat History:
+    Consultant: Would you like to know more about the services IIRIS offers or its areas of expertise?
+    User: yes
+    Standalone Question: What are the services and areas of expertise of IIRIS?
+
+    **Now process this:**
+    
     Chat History:
     {history}
 
@@ -230,45 +239,45 @@ async def ask_endpoint(request: QueryRequest):
         search_query = corrected_question
         
         if history_text:
-            # Rephrase the question to be standalone for better retrieval
-            condensed_response = await (condense_question_prompt | request_model).ainvoke({
-                "history": history_text, 
-                "question": corrected_question
-            })
-            update_usage(condensed_response)
-            search_query = condensed_response.content.strip()
-
-            # --- ROBUSTNESS FALLBACK for Affirmations ---
-            # If the model fails to rephrase a simple "yes", we intervene.
-            # This checks if the original question was an affirmation AND the rephrased query is still the same (or very short), indicating failure.
-            if is_affirmation(corrected_question) and (search_query.lower() == corrected_question.lower() or len(search_query.split()) <= 2):
-                print("⚠️ Condensation failed on affirmation. Applying robust fallback.")
+            # 1. Check for simple affirmation FIRST (e.g., "yes", "sure")
+            # This bypasses the generic condensation model which often fails on short affirmations.
+            if is_affirmation(corrected_question):
+                print("🔍 User provided affirmation. Attempting to resolve implied question from history.")
                 last_bot_message = ""
-                # Find the last message from the assistant to provide context for the fallback.
                 for msg in reversed(request.history):
                     if msg.get("role") != "user":
                         last_bot_message = msg.get("content")
                         break
                 
                 if last_bot_message:
-                    # Create a highly specific prompt to fix the failed condensation.
-                    fallback_prompt = ChatPromptTemplate.from_template(
-                        """A user replied with an affirmation like "yes" to your last question.
-                        Your last question was: "{last_question}"
+                    affirmation_prompt = ChatPromptTemplate.from_template(
+                        """
+                        The user replied with a simple affirmation (e.g., "yes") to the assistant's last message.
                         
-                        What is the implied standalone question the user is asking now?
-                        Example: If your last question was "Would you like to know about services?", the implied question is "What services does IIRIS offer?".
+                        Assistant's last message: "{last_question}"
                         
-                        Implied standalone question:"""
+                        Task: Interpret the affirmation and formulate the specific question the user is implying.
+                        
+                        Examples:
+                        - Assistant: "Would you like to know about our services?" -> User: "Yes" -> Implied Question: "What services does IIRIS offer?"
+                        - Assistant: "Do you want to know our location?" -> User: "Sure" -> Implied Question: "Where is IIRIS located?"
+                        
+                        Implied Question:
+                        """
                     )
-                    fallback_chain = fallback_prompt | request_model
-                    fallback_response = await fallback_chain.ainvoke({"last_question": last_bot_message})
-                    update_usage(fallback_response)
-                    
-                    new_search_query = fallback_response.content.strip()
-                    if new_search_query: # Ensure the fallback didn't return an empty string.
-                        search_query = new_search_query
-                        print(f"✅ Fallback generated new search query: '{search_query}'")
+                    affirmation_chain = affirmation_prompt | request_model
+                    affirmation_response = await affirmation_chain.ainvoke({"last_question": last_bot_message})
+                    update_usage(affirmation_response)
+                    search_query = affirmation_response.content.strip()
+                    print(f"✅ Resolved affirmation to: '{search_query}'")
+            else:
+                # 2. Standard condensation for other follow-ups
+                condensed_response = await (condense_question_prompt | request_model).ainvoke({
+                    "history": history_text, 
+                    "question": corrected_question
+                })
+                update_usage(condensed_response)
+                search_query = condensed_response.content.strip()
 
         # Use asynchronous search for better performance
         docs = await db.asimilarity_search(search_query, k=request.k)
@@ -332,4 +341,7 @@ def feedback_endpoint(request: FeedbackRequest):
 
 if __name__ == "__main__":
     print("🚀 Starting Backend Server...")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Read host and port from environment variables, with defaults
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", 10000))
+    uvicorn.run(app, host=host, port=port)
