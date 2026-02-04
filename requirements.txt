@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+pymongo
+langchain-community
+langchain-groq
+faiss-cpu
+sentence-transformers
+pydantic
+requests
+streamlit
+python-dotenv
+langchain-text-splitters
+httpx
+langchain-huggingface
