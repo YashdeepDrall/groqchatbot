@@ -41,7 +41,8 @@ def get_mongo_collection():
     # Removed angle brackets <> from the password
     mongo_uri = os.getenv("MONGO_URI")
     if not mongo_uri:
-        raise ValueError("MONGO_URI environment variable not found. Please set it in your .env file.")
+        print("⚠️ MONGO_URI not found. Database features will be disabled.")
+        return None
     client = MongoClient(mongo_uri)
     db = client["cybersecurity_bot"]
     return db["chat_history"]
@@ -52,6 +53,9 @@ def store_chat(question: str, answer: str, context: str, flags: Optional[List[st
         if flags is None:
             flags = []
         collection = get_mongo_collection()
+        if collection is None:
+            return "local_mode"
+            
         record = ChatRecord(question=question, answer=answer, context=context, flags=flags, token_usage=token_usage)
         result = collection.insert_one(record.model_dump())
         print(f"✅ Chat stored in MongoDB with ID: {result.inserted_id}")
@@ -64,6 +68,8 @@ def update_chat_feedback(chat_id: str, feedback: str):
     """Updates a chat record with user feedback."""
     try:
         collection = get_mongo_collection()
+        if collection is None:
+            return
         collection.update_one({"_id": ObjectId(chat_id)}, {"$set": {"user_feedback": feedback}})
         print(f"✅ Feedback updated for {chat_id}: {feedback}")
     except Exception as e:

@@ -17,7 +17,9 @@ st.set_page_config(
 
 # --- API Endpoint ---
 # This should point to the address where your chatbot.py backend is running
+
 API_URL = os.getenv("API_URL", "https://groqchatbot-7zib.onrender.com/ask")
+#API_URL = os.getenv("API_URL", "http://127.0.0.1:10000/ask")
 
 # --- Sidebar for Model Settings ---
 st.sidebar.title("⚙️ Model Settings")
