@@ -2,6 +2,11 @@
 import streamlit as st
 import requests
 import uuid
+import os
+from dotenv import load_dotenv
+
+# Load environment variables for local development
+load_dotenv()
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -12,7 +17,7 @@ st.set_page_config(
 
 # --- API Endpoint ---
 # This should point to the address where your chatbot.py backend is running
-API_URL = "http://127.0.0.1:8000/ask"
+API_URL = os.getenv("API_URL", "https://groqchatbot-6vm5.onrender.com/ask")
 
 # --- Sidebar for Model Settings ---
 st.sidebar.title("⚙️ Model Settings")

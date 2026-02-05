@@ -18,6 +18,7 @@ from langchain_core.documents import Document
 # Local imports from other files
 from database import store_chat, update_chat_feedback, QueryRequest, FeedbackRequest
 from analysis import analyze_response
+from create_vectorstore import create_vector_store_from_directory
 
 # --- Initial Setup ---
 load_dotenv()
@@ -30,6 +31,11 @@ if not GROQ_API_KEY:
 # --- LangChain/Model Setup ---
 print("Loading models and vector store...")
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
+# Always rebuild vector store on startup to ensure latest data is used
+print("🔄 Rebuilding vector store from 'data' directory...")
+create_vector_store_from_directory()
+
 db = FAISS.load_local("vectorstore", embeddings, allow_dangerous_deserialization=True)
 model = ChatGroq(model="meta-llama/llama-4-scout-17b-16e-instruct")
 print("✅ Models and vector store loaded.")

@@ -142,4 +142,4 @@ IIRIS provides its full suite of services in the UAE and Gulf region, operating 
 
 21. What is the full form of IIRIS ? 
 
-IIRIS stands for Indus IntelliRisk & IntelliSense Services. It is a leading global risk management and consulting firm specializing in risk advisory, security design, forensics, business continuity, and training.
+IIRIS stands for Indus IntelliRisk & IntelliSense Services.
