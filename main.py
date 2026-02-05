@@ -1,6 +1,5 @@
-# chatbot.py
 import difflib
-import uvicorn
+#import uvicorn
 import os
 import traceback
 from dotenv import load_dotenv
@@ -23,22 +22,34 @@ from create_vectorstore import create_vector_store_from_directory
 # --- Initial Setup ---
 load_dotenv()
 
-# --- API Key Validation ---
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-if not GROQ_API_KEY:
-    raise ValueError("GROQ_API_KEY environment variable not found. Please set it in your .env file.")
-
 # --- LangChain/Model Setup ---
-print("Loading models and vector store...")
-embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+# Initialize globals to None to prevent startup crashes
+db = None
+model = None
+embeddings = None
 
-# Always rebuild vector store on startup to ensure latest data is used
-print("🔄 Rebuilding vector store from 'data' directory...")
-create_vector_store_from_directory()
+try:
+    # --- API Key Validation ---
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+    if not GROQ_API_KEY:
+        print("⚠️ WARNING: GROQ_API_KEY not found. The bot will not function correctly.")
 
-db = FAISS.load_local("vectorstore", embeddings, allow_dangerous_deserialization=True)
-model = ChatGroq(model="meta-llama/llama-4-scout-17b-16e-instruct")
-print("✅ Models and vector store loaded.")
+    print("Loading models and vector store...")
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
+    # Always rebuild vector store on startup to ensure latest data is used
+    print("🔄 Rebuilding vector store from 'data' directory...")
+    create_vector_store_from_directory()
+
+    if os.path.exists("vectorstore"):
+        db = FAISS.load_local("vectorstore", embeddings, allow_dangerous_deserialization=True)
+        print("✅ Vector store loaded.")
+    
+    model = ChatGroq(model="meta-llama/llama-4-scout-17b-16e-instruct")
+    print("✅ Models loaded.")
+except Exception as e:
+    print(f"❌ Error during initialization: {e}")
+    print(traceback.format_exc())
 
 # --- Prompt Templates ---
 condense_question_prompt = ChatPromptTemplate.from_template(
@@ -122,6 +133,11 @@ internal_knowledge_prompt = ChatPromptTemplate.from_template(
 # --- FastAPI Application ---
 app = FastAPI(title="Cybersecurity Bot API")
 
+# Add a root endpoint for Render Health Checks
+@app.get("/")
+def read_root():
+    return {"status": "running", "message": "Cybersecurity Bot API is active"}
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], # Restrict for production
@@ -199,6 +215,10 @@ async def test_groq_endpoint():
 # --- API Endpoints ---
 @app.post("/ask")
 async def ask_endpoint(request: QueryRequest):
+    # Check if system is ready
+    if db is None or model is None:
+        return {"answer": "System is currently initializing or encountered an error loading the knowledge base. Please check server logs.", "context": "System Error", "docs": [], "chat_id": ""}
+
     def format_history(history: List[Dict[str, str]]) -> str:
         formatted = ""
         for msg in history:
@@ -345,11 +365,11 @@ def feedback_endpoint(request: FeedbackRequest):
     update_chat_feedback(request.chat_id, request.feedback)
     return {"status": "success"}
 
-if __name__ == "__main__":
-    print("🚀 Starting Backend Server...")
-    # Read host and port from environment variables, with defaults
-    # This is the correct setup for cloud services like Render.
-    host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", 10000))
-    print(f"✅ Attempting to start server on host='{host}' and port='{port}' from environment variables.")
-    uvicorn.run(app, host=host, port=port)
+# if __name__ == "__main__":
+#     print("🚀 Starting Backend Server...")
+#     # Read host and port from environment variables, with defaults
+#     # This is the correct setup for cloud services like Render.
+#     host = os.getenv("HOST", "0.0.0.0")
+#     port = int(os.getenv("PORT", 10000))
+#     print(f"✅ Attempting to start server on host='{host}' and port='{port}' from environment variables.")
+#     uvicorn.run(app, host=host, port=port)
