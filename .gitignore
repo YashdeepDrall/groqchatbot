@@ -18,5 +18,4 @@ yarn-debug.log*
 yarn-error.log*
 
 # Project Specific (Heavy generated files)
-vectorstore/
 *.log
