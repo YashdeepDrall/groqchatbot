@@ -5,9 +5,6 @@ from typing import List, Dict
 from dotenv import load_dotenv
 
 # Heavy imports moved here
-from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 
 # Local imports
@@ -144,6 +141,11 @@ def correct_typos(question: str) -> str:
 # --- RAG System Class ---
 class RagSystem:
     def __init__(self):
+        # Lazy imports to prevent slow startup
+        from langchain_community.vectorstores import FAISS
+        from langchain_huggingface import HuggingFaceEmbeddings
+        from langchain_groq import ChatGroq
+
         print("🔄 Initializing RAG system (Lazy Load)...")
         self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
         

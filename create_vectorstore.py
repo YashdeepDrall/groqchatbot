@@ -1,14 +1,16 @@
 # create_vectorstore.py
 import os
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 def create_vector_store_from_directory(data_dir="data", store_path="vectorstore"):
     """
     Reads all .txt files from a directory, splits them into chunks,
     creates embeddings, and saves them to a local FAISS vector store.
     """
+    # Lazy imports to prevent slow startup
+    from langchain_huggingface import HuggingFaceEmbeddings
+    from langchain_community.vectorstores import FAISS
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+
     all_chunks = []
 
     if not os.path.exists(data_dir):
