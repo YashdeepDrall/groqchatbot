@@ -342,6 +342,8 @@ def feedback_endpoint(request: FeedbackRequest):
 if __name__ == "__main__":
     print("🚀 Starting Backend Server...")
     # Read host and port from environment variables, with defaults
+    # This is the correct setup for cloud services like Render.
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", 10000))
+    print(f"✅ Attempting to start server on host='{host}' and port='{port}' from environment variables.")
     uvicorn.run(app, host=host, port=port)

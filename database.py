@@ -39,7 +39,9 @@ load_dotenv()
 def get_mongo_collection():
     """Establishes connection to MongoDB and returns the chat_history collection."""
     # Removed angle brackets <> from the password
-    mongo_uri = os.getenv("MONGO_URI", "mongodb+srv://yashdeepdrall_db_user:fetO6Qa28abMif1I@cluster0.zr6fjh1.mongodb.net/?appName=Cluster0")
+    mongo_uri = os.getenv("MONGO_URI")
+    if not mongo_uri:
+        raise ValueError("MONGO_URI environment variable not found. Please set it in your .env file.")
     client = MongoClient(mongo_uri)
     db = client["cybersecurity_bot"]
     return db["chat_history"]
