@@ -1,3 +1,5 @@
+print("APP FILE LOADED")
+
 import difflib
 #import uvicorn
 import os
