@@ -86,6 +86,7 @@ relevance_prompt = ChatPromptTemplate.from_template(
 internal_knowledge_prompt = ChatPromptTemplate.from_template(
     "You are a professional cybersecurity consultant at IIRIS Consulting.\n"
     "The user has asked a question that is not covered by your current context documents.\n"
+    "Gurpawan Singh and Garry Singh are the same guys, So if the context mentions either of them, you can use that information to answer questions about the CEO or leadership.\n"
     "Answer the question using your internal knowledge. Be professional and practical.\n"
     "If you do not know the answer, simply state that you do not have that specific information at the moment. Do NOT use phrases like 'database not up-to-date' or 'information not publicly available'.\n"
     "Do NOT guess or hallucinate.\n\n"

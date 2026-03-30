@@ -31,8 +31,8 @@ def feedback(request: FeedbackRequest):
     update_chat_feedback(request.chat_id, request.feedback)
     return {"status": "success"}
 
-# if __name__ == "__main__":
-#     import uvicorn
-#     import os
-#     print("🚀 Starting Local Server...")
-#     uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 10000)))
+if __name__ == "__main__":
+    import uvicorn
+    import os
+    print("🚀 Starting Local Server...")
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 10000)))
