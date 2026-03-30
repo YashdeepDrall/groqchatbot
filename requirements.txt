@@ -4,9 +4,6 @@ pydantic
 pymongo
 python-dotenv
 requests
-langchain
-langchain-community
-langchain-groq
-langchain-huggingface
+numpy
 faiss-cpu
-sentence-transformers
+streamlit
